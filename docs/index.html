@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Megan · Assistente pessoal no WhatsApp">
+<meta property="og:description" content="Sistema multiagentes com Google ADK: 6 agentes, 32 ferramentas, voz e visão.">
+<meta property="og:image" content="https://SEU-USUARIO.github.io/megan/og-image.png">
+<meta property="og:url" content="https://SEU-USUARIO.github.io/megan/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="megan-avatar.svg" type="image/svg+xml">
+<title>Megan · Assistente no WhatsApp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Megan: assistente pessoal no WhatsApp, um sistema multiagentes construído com o Google ADK por Bruno Martins.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: conversa como fio condutor — hero com chat ao vivo, depois "por baixo dos panos" (arquitetura → agentes → sentidos → segurança → história) */
+:root{
+  --bg:#F6F4FD; --surface:#FFFFFF; --sunk:#EEEAFB; --ink:#1C1640; --muted:#625C82; --line:#DDD7F3;
+  --accent:#5B3CC4; --accent-ink:#FFFFFF; --accent-soft:#E7E1FC;
+  --warm:#8A5E00; --warm-soft:#FFF0C7; --gold:#FFD166;
+  --bubble-in:#FFFFFF; --bubble-out:#E4DCFF; --chat-bg:#ECE8F8;
+  --brand-1:#8A6CF5; --brand-2:#5B3CC4; --brand-3:#3A2390;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#110C29; --surface:#1A1440; --sunk:#150F34; --ink:#EEEAFF; --muted:#A49DCB; --line:#2D2560;
+  --accent:#A390FF; --accent-ink:#150F34; --accent-soft:#2C2272;
+  --warm:#FFD166; --warm-soft:#3A2F12; --gold:#FFD166;
+  --bubble-in:#231B50; --bubble-out:#3A2A8A; --chat-bg:#140E33;
+  --brand-1:#8A6CF5; --brand-2:#5B3CC4; --brand-3:#3A2390; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#110C29; --surface:#1A1440; --sunk:#150F34; --ink:#EEEAFF; --muted:#A49DCB; --line:#2D2560;
+  --accent:#A390FF; --accent-ink:#150F34; --accent-soft:#2C2272;
+  --warm:#FFD166; --warm-soft:#3A2F12; --gold:#FFD166;
+  --bubble-in:#231B50; --bubble-out:#3A2A8A; --chat-bg:#140E33;
+  --brand-1:#8A6CF5; --brand-2:#5B3CC4; --brand-3:#3A2390; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);line-height:1.05;text-wrap:balance;margin:0;letter-spacing:-.02em}
+h2{font-size:clamp(1.9rem,4vw,2.8rem);font-weight:700}
+h3{font-size:1.25rem;font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+.eyebrow{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted);font-size:1.08rem;max-width:62ch}
+section{padding-block:88px;border-top:1px solid var(--line)}
+.sec-head{display:grid;gap:14px;margin-bottom:44px;max-width:760px}
+
+/* top bar */
+.top{display:flex;justify-content:space-between;align-items:center;padding-block:22px;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:700;font-size:1.15rem}
+.top nav{display:flex;gap:22px;font-size:.92rem}
+.top nav a{color:var(--muted);text-decoration:none}
+.top nav a:hover{color:var(--ink)}
+@media (max-width:760px){.top nav{display:none}}
+
+/* hero */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;padding-block:40px 96px}
+.hero > *{min-width:0}
+.hero h1{font-size:clamp(3rem,8vw,6.2rem);font-weight:800;letter-spacing:-.045em}
+.hero h1 .dot{color:var(--gold);font-size:.42em;vertical-align:super;margin-left:.08em;text-shadow:0 0 18px color-mix(in srgb,var(--gold) 60%,transparent)}
+.hero-id{display:flex;align-items:center;gap:22px;margin-top:10px}
+.av-sm{border-radius:50%;display:block;flex:none}
+.av-lg{border-radius:30px;flex:none;box-shadow:0 18px 40px -16px rgba(58,35,144,.6)}
+@media (max-width:520px){.av-lg{width:76px;height:76px;border-radius:22px}}
+.stage{position:relative;justify-self:center;width:100%;max-width:500px;padding:30px;border-radius:32px;background:radial-gradient(120% 90% at 50% 30%,var(--brand-1),var(--brand-2) 55%,var(--brand-3));overflow:hidden}
+.stage::before,.stage::after{content:"";position:absolute;border-radius:50%;background:#fff;opacity:.07;pointer-events:none}
+.stage::before{width:420px;height:420px;left:50%;top:44%;transform:translate(-50%,-50%)}
+.stage::after{width:300px;height:300px;left:50%;top:44%;transform:translate(-50%,-50%)}
+.stage .spark{position:absolute;color:var(--gold);z-index:1;line-height:1}
+.stage .phone{position:relative;z-index:2}
+@media (max-width:520px){.stage{padding:14px;border-radius:24px}}
+.hero .thesis{font-family:var(--f-display);font-size:clamp(1.35rem,2.6vw,1.9rem);font-weight:500;line-height:1.2;margin-top:18px;max-width:22ch;text-wrap:balance}
+.hero .thesis em{font-style:normal;color:var(--accent)}
+.hero .lede{margin-top:20px}
+.facts{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px}
+.fact{display:grid}
+.fact b{font-family:var(--f-display);font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.fact span{font-size:.82rem;color:var(--muted)}
+@media (max-width:900px){.hero{grid-template-columns:1fr;gap:40px}}
+
+/* phone chat */
+.phone{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:10px;box-shadow:0 30px 60px -30px rgba(40,20,110,.45);max-width:440px;width:100%;justify-self:center}
+.phone-head{display:flex;align-items:center;gap:10px;padding:10px 12px 12px}
+.phone-head .who{display:grid;line-height:1.2}
+.phone-head .who b{font-size:.98rem}
+.phone-head .who small{color:var(--accent);font-size:.78rem;min-height:1.2em}
+.chat{background:var(--chat-bg);border-radius:20px;padding:16px 12px;height:430px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:8px}
+.msg{max-width:85%;padding:8px 11px 6px;border-radius:12px;font-size:.9rem;line-height:1.45;position:relative;animation:pop .35s ease both}
+.msg.in{background:var(--bubble-in);align-self:flex-start;border-top-left-radius:4px}
+.msg.out{background:var(--bubble-out);align-self:flex-end;border-top-right-radius:4px}
+.msg .meta{display:flex;justify-content:flex-end;gap:6px;font-size:.68rem;color:var(--muted);margin-top:2px}
+.msg.out .meta::after{content:"✓✓";color:var(--accent);letter-spacing:-2px}
+.route{align-self:center;font-family:var(--f-mono);font-size:.68rem;color:var(--warm);background:var(--warm-soft);border:1px solid color-mix(in srgb,var(--gold) 50%,transparent);padding:3px 9px;border-radius:99px;animation:pop .35s ease both}
+.audio{display:flex;align-items:center;gap:8px;min-width:190px}
+.audio i{width:26px;height:26px;border-radius:50%;background:var(--accent);flex:none;display:grid;place-items:center;color:var(--accent-ink);font-style:normal;font-size:.7rem}
+.wave{flex:1;height:18px;background:repeating-linear-gradient(90deg,var(--muted) 0 2px,transparent 2px 5px);mask:linear-gradient(90deg,#000 0,#000 100%);opacity:.5;border-radius:2px;clip-path:polygon(0 40%,8% 10%,16% 60%,24% 0,32% 45%,40% 20%,48% 70%,56% 5%,64% 50%,72% 25%,80% 65%,88% 15%,100% 45%,100% 100%,0 100%)}
+.photo{width:170px;height:96px;border-radius:8px;background:
+  repeating-linear-gradient(0deg,transparent 0 15px,color-mix(in srgb,var(--muted) 35%,transparent) 15px 16px),var(--warm-soft);
+  display:grid;place-items:center;font-family:"Segoe Print","Bradley Hand",cursive;color:var(--ink);font-size:.82rem;line-height:1.15;text-align:left;padding:6px 14px;margin-bottom:4px}
+.typing{align-self:flex-start;background:var(--bubble-in);border-radius:12px;padding:10px 14px;display:flex;gap:4px}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+.chat-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:12px 4px 4px}
+.chat-tabs button{font:inherit;font-size:.75rem;border:1px solid var(--line);background:transparent;color:var(--muted);padding:4px 10px;border-radius:99px;cursor:pointer}
+.chat-tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.caption{font-size:.75rem;color:var(--muted);text-align:center;padding:6px 0 2px}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+/* architecture */
+.arch{display:grid;gap:14px}
+.layer{display:grid;grid-template-columns:160px 1fr;gap:20px;align-items:center}
+.layer > *{min-width:0}
+.layer .lbl{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.node{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.9rem;display:grid;gap:2px}
+.node small{color:var(--muted);font-size:.76rem}
+.node.core{background:radial-gradient(140% 120% at 30% 20%,var(--brand-1),var(--brand-2) 60%,var(--brand-3));border-color:transparent;color:#fff;grid-template-columns:auto 1fr;align-items:center;column-gap:12px;font-family:var(--f-display);font-weight:700;font-size:1.15rem;padding:14px 22px}
+.node.core small{grid-column:2;color:inherit;opacity:.85;font-family:var(--f-body);font-weight:400}
+.node.agent{border-color:var(--accent);border-width:1.5px}
+.node.agent code{color:var(--accent);font-size:.78rem}
+.node.ext{background:var(--sunk);border-style:dashed}
+.flow{display:grid;grid-template-columns:160px 1fr;gap:20px}
+.flow span{grid-column:2;width:2px;height:18px;background:var(--line);margin-left:24px}
+.note{margin-top:36px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.note > div{display:grid;gap:6px;align-content:start}
+.note b{font-family:var(--f-display);font-size:1.05rem}
+.note p{color:var(--muted);font-size:.95rem}
+@media (max-width:760px){.layer,.flow{grid-template-columns:1fr;gap:8px}.layer .lbl{text-align:left}.flow span{grid-column:1}.note{grid-template-columns:1fr}}
+
+/* agents */
+.agents{display:grid;grid-template-columns:260px 1fr;gap:32px;align-items:start}
+.agents > *{min-width:0}
+.agent-list{display:grid;gap:6px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px)}
+.agent-list button{font:inherit;text-align:left;background:transparent;border:1px solid transparent;border-radius:12px;padding:12px 14px;cursor:pointer;color:var(--ink);display:grid;gap:2px}
+.agent-list button:hover{background:var(--surface)}
+.agent-list button[aria-selected="true"]{background:var(--surface);border-color:var(--line)}
+.agent-list button b{font-family:var(--f-display);font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.agent-list button small{color:var(--muted);font-family:var(--f-mono);font-size:.72rem}
+.agent-list button .n{margin-left:auto;font-family:var(--f-mono);font-size:.7rem;color:var(--accent);background:var(--accent-soft);padding:1px 7px;border-radius:99px;font-weight:500}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:32px;display:grid;gap:24px}
+.panel-head{display:grid;gap:10px}
+.panel-head h3{font-size:1.8rem}
+.panel-head p{color:var(--muted);max-width:62ch}
+.tools-group h4{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:500}
+.tools{display:grid;border-top:1px solid var(--line)}
+.tool{display:grid;grid-template-columns:200px 1fr;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:.93rem}
+.tool > *{min-width:0}
+.tool code{color:var(--accent);word-break:break-word}
+.rules{display:grid;gap:8px;padding:18px 20px;background:var(--sunk);border-radius:12px}
+.rules b{font-family:var(--f-display)}
+.rules ul{margin:0;padding-left:18px;display:grid;gap:4px;color:var(--muted);font-size:.93rem}
+.sample{display:grid;gap:6px;background:var(--chat-bg);border-radius:14px;padding:16px}
+.sample .msg{animation:none;max-width:92%}
+@media (max-width:860px){.agents{grid-template-columns:1fr}.agent-list{position:static;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}.panel{padding:22px}.tool{grid-template-columns:1fr;gap:2px}}
+
+/* senses */
+.senses{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.sense{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px;display:grid;gap:12px;align-content:start}
+.sense .ic{width:44px;height:44px;border-radius:12px;background:linear-gradient(145deg,var(--brand-1),var(--brand-3));color:#fff;display:grid;place-items:center}
+.sense p{color:var(--muted);font-size:.95rem}
+.sense ul{margin:0;padding-left:18px;color:var(--muted);font-size:.9rem;display:grid;gap:4px}
+.sense .tech{font-family:var(--f-mono);font-size:.74rem;color:var(--accent)}
+@media (max-width:860px){.senses{grid-template-columns:1fr}}
+
+/* security */
+.sec-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sec-card{border:1px solid var(--line);border-radius:var(--r);padding:28px;display:grid;gap:18px;align-content:start;background:var(--surface)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:14px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:30px 1fr;gap:12px;counter-increment:s;font-size:.95rem}
+.steps li::before{content:counter(s);width:28px;height:28px;border-radius:50%;border:1.5px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-family:var(--f-mono);font-size:.78rem}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:.8rem;padding:5px 11px;border-radius:99px;background:var(--sunk);color:var(--ink)}
+.chip code{color:var(--accent)}
+.code-box{font-family:var(--f-mono);letter-spacing:.35em;font-size:1.6rem;font-weight:500;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 16px;justify-self:start}
+@media (max-width:860px){.sec-grid{grid-template-columns:1fr}}
+
+/* reliability */
+.rel{display:grid;grid-template-columns:repeat(2,1fr);gap:0 48px}
+.rel div{padding:20px 0;border-bottom:1px solid var(--line);display:grid;gap:6px}
+.rel b{font-family:var(--f-display);font-size:1.08rem}
+.rel p{color:var(--muted);font-size:.95rem}
+@media (max-width:760px){.rel{grid-template-columns:1fr}}
+
+/* stack */
+.stack{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.stack div{background:var(--surface);padding:16px 18px;display:grid;gap:2px}
+.stack small{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stack span{font-weight:600}
+
+/* timeline */
+.timeline{display:grid;gap:0;position:relative}
+.tl{display:grid;grid-template-columns:120px 24px 1fr;gap:16px;padding-bottom:28px}
+.tl > *{min-width:0}
+.tl time{font-family:var(--f-mono);font-size:.85rem;color:var(--muted);text-align:right;padding-top:1px;font-variant-numeric:tabular-nums}
+.tl .pin{position:relative;display:flex;justify-content:center}
+.tl .pin::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--accent);margin-top:6px;position:relative;z-index:1;box-shadow:0 0 0 4px var(--bg)}
+.tl .pin::after{content:"";position:absolute;top:10px;bottom:-34px;width:2px;background:var(--line)}
+.tl:last-child .pin::after{display:none}
+.tl .what b{font-family:var(--f-display);font-size:1.1rem;display:block;margin-bottom:2px}
+.tl .what p{color:var(--muted);font-size:.95rem;max-width:64ch}
+.tl.next .pin::before{background:transparent;border:2px dashed var(--warm)}
+.tl.next time{color:var(--warm)}
+@media (max-width:600px){.tl{grid-template-columns:24px 1fr;gap:12px}.tl time{grid-column:2;text-align:left;order:-1}.tl .pin{grid-row:1 / span 2}}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding-block:56px 64px}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:24px;align-items:flex-end}
+.foot h3{font-size:clamp(1.6rem,3.4vw,2.4rem);max-width:20ch}
+.foot p{color:var(--muted);font-size:.92rem}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} img{max-width:100%} [hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <img src="megan-avatar.svg" alt="" width="34" height="34" class="av-sm">
+      Megan
+    </div>
+    <nav aria-label="Seções">
+      <a href="#arquitetura">Arquitetura</a>
+      <a href="#agentes">Agentes</a>
+      <a href="#sentidos">Voz e visão</a>
+      <a href="#seguranca">Segurança</a>
+      <a href="#historia">História</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Projeto pessoal · Google ADK · WhatsApp</p>
+      <div class="hero-id"><img src="megan-avatar.svg" alt="Avatar da Megan: secretária com headset" width="104" height="104" class="av-lg"><h1>Megan<span class="dot" aria-hidden="true">✦</span></h1></div>
+      <p class="thesis">Uma secretária no WhatsApp. Por baixo, <em>cinco especialistas</em> que você nunca vê.</p>
+      <p class="lede">A Megan conversa de forma natural, entende áudios, lê fotos e responde com a própria voz. Quando o pedido exige dados reais (clima, finanças da casa, lista de compras, agenda do Google, pesquisa na internet), ela passa a conversa para o agente certo, sem o usuário perceber a troca.</p>
+      <div class="facts">
+        <div class="fact"><b>6</b><span>agentes</span></div>
+        <div class="fact"><b>32</b><span>ferramentas</span></div>
+        <div class="fact"><b>11</b><span>dias do 1º agente à visão</span></div>
+        <div class="fact"><b>3</b><span>sentidos: texto, voz e visão</span></div>
+      </div>
+    </div>
+
+    <div class="stage"><span class="spark" style="top:14px;right:22px;font-size:28px" aria-hidden="true">✦</span><span class="spark" style="bottom:70px;left:12px;font-size:16px;color:#fff;opacity:.8" aria-hidden="true">✦</span>
+    <div class="phone" aria-label="Demonstração de conversa com a Megan">
+      <div class="phone-head">
+        <img src="megan-avatar.svg" alt="" width="40" height="40" class="av-sm">
+        <div class="who"><b>Megan</b><small id="status">online</small></div>
+      </div>
+      <div class="chat" id="chat" aria-live="polite">
+        <div class="msg out">Bom dia, Megan! Vai chover hoje em Araraquara?<div class="meta">08:02</div></div>
+        <div class="route">→ weather_time_agent</div>
+        <div class="msg in">Bom dia! 🌤️ Parcialmente nublado, máxima de 31 °C. Entre 15h e 18h a chance de chuva chega a 70%. Vale levar o guarda-chuva!<div class="meta">08:02</div></div>
+      </div>
+      <div class="chat-tabs" role="group" aria-label="Escolher exemplo" id="chatTabs"></div>
+      <p class="caption">Exemplos ilustrativos · a etiqueta dourada mostra o agente que respondeu por baixo dos panos</p>
+    </div></div>
+  </div>
+</div>
+
+<section id="arquitetura">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Arquitetura</p>
+      <h2>Uma assistente na frente, um sistema multiagentes atrás</h2>
+      <p class="lede">A cada mensagem, a Megan decide se responde sozinha ou se transfere a conversa. Os especialistas trabalham em modo conversa: assumem o atendimento e, quando o assunto muda, passam a vez direto para quem entende do novo pedido.</p>
+    </div>
+
+    <div class="arch">
+      <div class="layer"><div class="lbl">Canal</div><div class="row"><div class="node">📱 WhatsApp<small>texto, áudio e foto</small></div><div class="node">Evolution API<small>webhook messages.upsert</small></div></div></div>
+      <div class="flow"><span></span></div>
+      <div class="layer"><div class="lbl">Servidor</div><div class="row"><div class="node">FastAPI<small>fila por conversa · ferramentas em threads</small></div><div class="node ext">Whisper via Groq<small>transcreve áudios</small></div><div class="node ext">Gemini visão<small>lê fotos</small></div><div class="node ext">edge-tts<small>voz da Megan</small></div><div class="node ext">2 agendadores<small>lembretes e acompanhamentos</small></div></div></div>
+      <div class="flow"><span></span></div>
+      <div class="layer"><div class="lbl">Orquestração</div><div class="row"><div class="node core"><img src="megan-avatar.svg" alt="" width="40" height="40" class="av-sm" style="grid-row:span 2;border:2px solid rgba(255,255,255,.5)"><span>Megan <span style="color:var(--gold)">✦</span></span><small>orquestradora · Google ADK</small></div></div></div>
+      <div class="flow"><span></span></div>
+      <div class="layer"><div class="lbl">Especialistas</div><div class="row">
+        <div class="node agent">🌦️ Clima e horário<code>weather_time_agent</code></div>
+        <div class="node agent">💰 Finanças<code>finance_agent</code></div>
+        <div class="node agent">🛒 Compras e preços<code>shopping_agent</code></div>
+        <div class="node agent">📅 Agenda<code>agenda_agent</code></div>
+        <div class="node agent">🔎 Pesquisa<code>search_agent</code></div>
+      </div></div>
+      <div class="flow"><span></span></div>
+      <div class="layer"><div class="lbl">Dados</div><div class="row">
+        <div class="node ext">Open-Meteo</div><div class="node ext">Supabase · MAI Finance</div><div class="node ext">OpenStreetMap</div><div class="node ext">Tavily</div><div class="node ext">Google Calendar</div><div class="node ext">DuckDuckGo, Bing, Yahoo</div>
+      </div></div>
+    </div>
+
+    <div class="note">
+      <div><b>Troca invisível</b><p>Para o usuário existe uma única assistente. Ela nunca diz "vou te transferir" e já responde ao pedido na mesma mensagem.</p></div>
+      <div><b>Honestidade por regra</b><p>Nenhum agente inventa valores, preços ou compromissos. Sem dado real, a Megan avisa em vez de completar com suposição.</p></div>
+      <div><b>Ela puxa assunto</b><p>Lembretes, resumo do dia às 7h e atualizações de acompanhamentos chegam sem o usuário perguntar.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="agentes">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Agentes</p>
+      <h2>Cada especialista com as suas ferramentas e as suas regras</h2>
+      <p class="lede">Escolha um agente para ver o que ele faz, as ferramentas que usa e como ele responde.</p>
+    </div>
+    <div class="agents">
+      <div class="agent-list" role="tablist" aria-label="Agentes" id="agentList"></div>
+      <div class="panel" role="tabpanel" id="agentPanel" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<section id="sentidos">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Voz e visão</p>
+      <h2>Ela fala, ouve e enxerga</h2>
+      <p class="lede">Áudios e fotos viram texto antes de chegar à Megan. Assim o histórico fica leve e o modelo reserva, que só lê texto, continua funcionando.</p>
+    </div>
+    <div class="senses">
+      <div class="sense">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h2M7 8v8M11 5v14M15 8v8M19 11v2"/></svg></div>
+        <h3>Entende seus áudios</h3>
+        <p>Mande uma nota de voz como mandaria para qualquer pessoa. A Megan transcreve e atende normalmente, inclusive pedidos que usam ferramentas.</p>
+        <span class="tech">whisper-large-v3-turbo · Groq</span>
+      </div>
+      <div class="sense">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg></div>
+        <h3>Lê suas fotos</h3>
+        <p>Descreve a imagem e transcreve o texto dela, até escrito à mão. A foto de uma lista de compras vai direto para a lista, com quantidade, grafia corrigida e corredor.</p>
+        <span class="tech">Gemini visão · LiteLLM</span>
+      </div>
+      <div class="sense">
+        <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <h3>Responde com a própria voz</h3>
+        <ul>
+          <li>Áudio responde áudio.</li>
+          <li>Em conversas por texto, cerca de 30% das respostas chegam como nota de voz.</li>
+          <li>Listas, links e respostas longas sempre vão em texto.</li>
+          <li>Se a voz falhar, a resposta sai em texto.</li>
+        </ul>
+        <span class="tech">edge-tts · voz Thalita (pt-BR)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="seguranca">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Segurança</p>
+      <h2>Dados da família protegidos, agenda conectada com o Google</h2>
+      <p class="lede">Finanças e lista de compras exigem login por código. A agenda usa o login do próprio Google, com acesso só aos eventos.</p>
+    </div>
+    <div class="sec-grid">
+      <div class="sec-card">
+        <h3>Login por código no WhatsApp</h3>
+        <div class="code-box" aria-label="Exemplo de código">482913</div>
+        <ol class="steps">
+          <li>Na primeira pergunta protegida, a Megan envia um código de 6 dígitos para o e-mail cadastrado daquele número.</li>
+          <li>O usuário digita o código na conversa.</li>
+          <li>Finanças e lista de compras ficam liberadas por 24 horas.</li>
+        </ol>
+        <div class="chips">
+          <span class="chip">expira em 5 min</span><span class="chip">3 tentativas</span><span class="chip">guardado só como hash</span><span class="chip"><code>secrets</code> + <code>hmac.compare_digest</code></span><span class="chip">checagem central no <code>before_tool_callback</code></span>
+        </div>
+      </div>
+      <div class="sec-card">
+        <h3>Agenda do Google com OAuth 2.0</h3>
+        <ol class="steps">
+          <li>A Megan envia um link de autorização assinado com HMAC, válido por 15 minutos, que só conecta a agenda de quem pediu.</li>
+          <li>O usuário escolhe a conta Google e permite o acesso apenas aos eventos (<code>calendar.events</code>).</li>
+          <li>Pode desconectar a qualquer momento, e o acesso também é revogado no Google.</li>
+        </ol>
+        <div class="chips">
+          <span class="chip">só números autorizados</span><span class="chip">grupos ignorados</span><span class="chip">links internos bloqueados na leitura de páginas</span><span class="chip">conteúdo da web nunca vira instrução</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="confiabilidade">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Confiabilidade</p>
+      <h2>Feita para não deixar ninguém sem resposta</h2>
+    </div>
+    <div class="rel">
+      <div><b>Modelo reserva automático</b><p>Se o modelo principal atingir o limite de uso, a conversa continua no reserva (Gemini e Groq, configuráveis) sem o usuário perceber.</p></div>
+      <div><b>Resumo de conversas longas</b><p>Passando de ~12 mil tokens, o histórico antigo vira um resumo em português que guarda pedidos e pendências e nunca inclui códigos de acesso.</p></div>
+      <div><b>Cache de instruções</b><p>Instruções fixas separadas das dinâmicas (data e hora) para aproveitar o cache do modelo e responder mais rápido.</p></div>
+      <div><b>Histórico entre provedores</b><p>Um callback remove os "pensamentos" do modelo antes de cada chamada, e o histórico funciona com qualquer provedor.</p></div>
+      <div><b>Uma mensagem por vez</b><p>Mensagens seguidas da mesma pessoa entram em fila e duplicadas do WhatsApp são ignoradas.</p></div>
+      <div><b>Formato nativo do WhatsApp</b><p>Se o modelo escapar para o Markdown, a resposta é corrigida antes do envio: nenhum asterisco sobra na tela.</p></div>
+      <div><b>Falhas isoladas</b><p>Um mercado fora do ar não derruba a pesquisa, e um acompanhamento que falha tenta de novo no próximo horário.</p></div>
+      <div><b>Memória persistente</b><p>Conversas salvas em PostgreSQL: a Megan lembra do contexto mesmo depois de uma atualização do sistema.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Tecnologias</p>
+      <h2>Stack</h2>
+    </div>
+    <div class="stack">
+      <div><small>Agentes</small><span>Google ADK (Python)</span></div>
+      <div><small>Modelos</small><span>Gemini e Groq via LiteLLM</span></div>
+      <div><small>Servidor</small><span>FastAPI + Uvicorn + HTTPX</span></div>
+      <div><small>WhatsApp</small><span>Evolution API</span></div>
+      <div><small>Sessões</small><span>PostgreSQL · DatabaseSessionService</span></div>
+      <div><small>Dados da casa</small><span>Supabase (MAI Finance)</span></div>
+      <div><small>Agenda</small><span>Google Calendar API · OAuth 2.0</span></div>
+      <div><small>Pesquisa</small><span>ddgs · Tavily</span></div>
+      <div><small>Clima e mapas</small><span>Open-Meteo · OpenStreetMap</span></div>
+      <div><small>Voz</small><span>edge-tts · Whisper</span></div>
+      <div><small>E-mail</small><span>Resend (SMTP)</span></div>
+      <div><small>Hospedagem</small><span>Docker no Easypanel</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="historia">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">História</p>
+      <h2>De um agente de clima a uma secretária completa</h2>
+    </div>
+    <div class="timeline">
+      <div class="tl"><time>16 out 2026</time><div class="pin"></div><div class="what"><b>Primeiro agente</b><p>Clima e horário, já conversando pelo WhatsApp, com as conversas salvas em banco.</p></div></div>
+      <div class="tl"><time>17 out</time><div class="pin"></div><div class="what"><b>Nasce a Megan</b><p>Orquestradora com agentes especialistas. Chega o agente de finanças com login por código.</p></div></div>
+      <div class="tl"><time>19 out</time><div class="pin"></div><div class="what"><b>Cara de produto</b><p>E-mails com domínio e visual próprios, "digitando..." e mensagem lida no WhatsApp.</p></div></div>
+      <div class="tl"><time>20 out</time><div class="pin"></div><div class="what"><b>O grande salto</b><p>Lista de compras e preços, respostas em áudio, transcrição de áudios, resumo automático de conversas e agenda do Google com lembretes. Refatoração geral.</p></div></div>
+      <div class="tl"><time>24 out</time><div class="pin"></div><div class="what"><b>Pesquisa na internet</b><p>Novo agente que pesquisa na web e abre os links enviados.</p></div></div>
+      <div class="tl"><time>25 out</time><div class="pin"></div><div class="what"><b>Mais confiável</b><p>Vários buscadores, filtro de data e regras contra informação inventada. Exclusão de itens da lista e acompanhamentos que mandam atualizações periódicas.</p></div></div>
+      <div class="tl"><time>26 out</time><div class="pin"></div><div class="what"><b>Ela enxerga</b><p>Leitura de fotos: descreve imagens e transcreve o texto. A foto de uma lista escrita vai direto para a lista de compras.</p></div></div>
+      <div class="tl next"><time>Próximo</time><div class="pin"></div><div class="what"><b>Acesso aos e-mails</b><p>Em desenvolvimento.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div style="display:grid;gap:10px">
+      <img src="megan-avatar.svg" alt="" width="56" height="56" class="av-sm"><p class="eyebrow">Sobre o projeto</p>
+      <h3>Um projeto de estudo de agentes de IA que virou parte da rotina da casa.</h3>
+    </div>
+    <p>Desenvolvido por <b>Bruno Martins</b><br>Martins AI Automation</p>
+  </div>
+</footer>
+
+<script>
+const AGENTS = [
+  { id:"megan", icon:"✨", name:"Megan", code:"orquestradora",
+    desc:"Prestativa, educada e cordial, com o tom de uma boa secretária. Responde sozinha às conversas gerais e decide, a cada mensagem, qual especialista assume o pedido.",
+    groups:[{t:"Faz sozinha", tools:[["conversa","Conversas gerais e dúvidas de conhecimento geral"],["textos e ideias","Ajuda com textos, ideias e organização"],["data e hora","Sabe sempre o dia, a data e a hora de Brasília"],["fotos","Descreve o que vê e passa adiante quando a foto pede um especialista"]]},
+            {t:"Delega", tools:[["clima e horário","weather_time_agent"],["gastos e contas","finance_agent"],["lista e preços","shopping_agent"],["compromissos","agenda_agent"],["internet e links","search_agent"]]}],
+    rules:["Quando não tem acesso a um dado (e-mails, por exemplo), avisa com educação em vez de inventar.","A troca de agente é invisível para o usuário."],
+    sample:[["out","Me ajuda a escrever uma mensagem de aniversário para minha mãe?"],["in","Claro! Que tal: \"Mãe, obrigado por cada conselho e cada abraço. Feliz aniversário, te amo!\" Quer algo mais divertido ou mais emocionante?"]] },
+  { id:"weather", icon:"🌦️", name:"Clima e horário", code:"weather_time_agent",
+    desc:"Informa o clima e a hora de qualquer cidade do mundo, com dados do Open-Meteo.",
+    groups:[{t:"Ferramentas", tools:[["get_weather","Clima atual: temperatura, sensação térmica, céu, umidade e vento"],["get_current_time","Data e hora locais, no fuso da cidade"],["get_forecast","Previsão diária de até 16 dias, com chance de chuva"],["get_hourly_forecast","Previsão hora a hora resumida por período, com destaque para a chuva"]]}],
+    rules:["Responde sobre qualquer cidade, sem precisar de chave de API."],
+    sample:[["out","🎤 Megan, que horas são em Lisboa?"],["in","🎤 Agora são 19h20 em Lisboa, quatro horas a mais que aqui."]] },
+  { id:"finance", icon:"💰", name:"Finanças", code:"finance_agent",
+    desc:"Consulta as finanças da casa no MAI Finance, o app de controle financeiro da família, em modo somente leitura. Entende \"este mês\" e \"mês passado\" e formata tudo como R$ 1.234,56.",
+    groups:[{t:"Ferramentas", tools:[["resumo_do_mes","Total do mês, pago, pendente e gastos por categoria"],["comparar_meses","Compara dois meses, total e por categoria"],["contas_pendentes","Contas a vencer, com destaque para as atrasadas"],["buscar_despesas","Procura despesas por texto, num mês ou em todos"],["maiores_despesas","Ranking das maiores despesas do mês"]]}],
+    rules:["Protegido por login com código de 6 dígitos.","Nunca inventa valores."],
+    sample:[["out","Quanto gastei este mês?"],["in","Para acessar suas finanças, enviei um código de 6 dígitos para b***@gmail.com."],["out","482913"],["in","Acesso liberado! Em outubro você gastou *R$ 4.230,15*, sendo R$ 3.100,00 já pagos e R$ 1.130,15 pendentes."]] },
+  { id:"shopping", icon:"🛒", name:"Compras e preços", code:"shopping_agent",
+    desc:"Cuida da lista de compras compartilhada da casa e pesquisa preços nos três mercados escolhidos da cidade.",
+    groups:[{t:"Lista de compras", tools:[["ver_lista","O que falta comprar, agrupado por corredor"],["adicionar_item","Preenche sozinho o corredor e a unidade com base nos itens frequentes"],["excluir_item","Procura o nome exato e pergunta quando há mais de um parecido"]]},
+            {t:"Preços", tools:[["pesquisar_preco","Marcas, tamanhos e preços nos 3 mercados, com a fonte"],["adicionar_com_preco","Adiciona ou atualiza o item com preço e mercado, sempre confirmando"],["precificar_lista","Pesquisa de uma vez os itens sem valor (até 10)"],["definir_preco","Grava o menor preço e mostra um resumo"]]},
+            {t:"Mercados", tools:[["buscar_mercados","Supermercados e atacadistas da cidade, via OpenStreetMap"],["salvar_mercados","Salva os 3 mercados da casa, válidos para todos os moradores"],["ver_configuracao","Mostra a cidade e os mercados configurados"]]}],
+    rules:["Regra de ouro: só mostra preços que encontrou de verdade.","Sem preço online, oferece adicionar o item sem valor."],
+    sample:[["out","Quanto está o arroz 5kg?"],["in","Encontrei nos seus mercados:\n1. Camil 5kg: *R$ 25,49* (Mercado A)\n2. Tio João 5kg: *R$ 27,90* (Mercado B)\n3. Prato Fino 5kg: *R$ 29,90* (Mercado C)\nQuer adicionar algum à lista?"]] },
+  { id:"agenda", icon:"📅", name:"Agenda", code:"agenda_agent",
+    desc:"Cuida da agenda do Google de cada usuário e manda lembretes no WhatsApp: aviso 30 minutos antes de cada compromisso e resumo do dia às 7h.",
+    groups:[{t:"Ferramentas", tools:[["conectar_agenda","Link de conexão com a conta Google, válido por 15 min"],["desconectar_agenda","Desconecta e revoga o acesso no Google"],["listar_eventos","Compromissos de um dia ou período (até 31 dias)"],["buscar_eventos","Procura nos próximos 180 dias por título, local ou descrição"],["criar_evento","Cria compromissos; \"me lembra de X às H\" vira um evento de 15 min"],["alterar_evento","Remarca mudando só o que foi pedido"],["cancelar_evento","Cancela sempre depois de confirmar"]]}],
+    rules:["Pergunta quando o dia ou horário está ambíguo.","Nunca inventa compromissos; um evento remarcado ganha aviso novo."],
+    sample:[["out","Marca dentista sexta às 14h"],["in","Agendado! 🦷 *Dentista* na sexta, 30/10, das 14:00 às 15:00. Eu te aviso 30 minutos antes."],["in","⏰ Lembrete: *Dentista* às 14:00 (daqui a 30 min)."]] },
+  { id:"search", icon:"🔎", name:"Pesquisa", code:"search_agent",
+    desc:"Pesquisa na web em vários buscadores, com resultados do Brasil, abre os links enviados e acompanha um assunto de tempos em tempos.",
+    groups:[{t:"Ferramentas", tools:[["buscar_na_web","Pesquisa geral com filtro por data"],["buscar_noticias","Notícias recentes, primeira opção para placares"],["ler_pagina","Abre um link público e traz título e texto"],["acompanhar","Pesquisa que se repete e manda o resumo no WhatsApp"],["listar_acompanhamentos","Acompanhamentos ativos e próxima atualização"],["cancelar_acompanhamento","Para um acompanhamento"]]}],
+    rules:["Responde só com o que está nas fontes, cita as fontes e diz de quando é a informação.","Nunca completa com a própria memória.","Bloqueia endereços internos e trata páginas como conteúdo de terceiros."],
+    sample:[["out","Até as 22h me manda o placar de Real Madrid x Barcelona a cada 30 minutos"],["in","Combinado! Agora está 1 x 0 para o Real Madrid. Te mando uma atualização a cada 30 minutos até as 22h."],["in","🔄 Gol do Barcelona: 1 x 1, aos 60 minutos."]] }
+];
+const toolCount = a => a.id==="megan" ? null : a.groups.reduce((n,g)=>n+g.tools.length,0);
+const esc = s => s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const fmt = s => esc(s).replace(/\*(.+?)\*/g,"<b>$1</b>").replace(/\n/g,"<br>");
+
+const list = document.getElementById("agentList"), panel = document.getElementById("agentPanel");
+function renderPanel(a){
+  panel.innerHTML = `
+    <div class="panel-head"><p class="eyebrow">${a.code}</p><h3>${a.icon} ${a.name}</h3><p>${a.desc}</p></div>
+    ${a.groups.map(g=>`<div class="tools-group"><h4>${g.t}</h4><div class="tools">${g.tools.map(t=>`<div class="tool"><code>${t[0]}</code><span>${t[1]}</span></div>`).join("")}</div></div>`).join("")}
+    <div class="rules"><b>Regras</b><ul>${a.rules.map(r=>`<li>${r}</li>`).join("")}</ul></div>
+    <div><div class="tools-group"><h4>Na conversa</h4></div><div class="sample">${a.sample.map(m=>`<div class="msg ${m[0]}">${fmt(m[1])}</div>`).join("")}</div></div>`;
+}
+AGENTS.forEach((a,i)=>{
+  const b=document.createElement("button");
+  b.setAttribute("role","tab"); b.id="tab-"+a.id; b.setAttribute("aria-selected", i===0);
+  const n=toolCount(a);
+  b.innerHTML=`<b>${a.icon} ${a.name}${n?`<span class="n">${n} ferramentas</span>`:""}</b><small>${a.code}</small>`;
+  b.onclick=()=>{list.querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected","false"));b.setAttribute("aria-selected","true");renderPanel(a)};
+  list.appendChild(b);
+});
+renderPanel(AGENTS[0]);
+
+/* Chat demo */
+const SCENES = [
+  {label:"Clima", time:"08:02", steps:[["out","Bom dia, Megan! Vai chover hoje em Araraquara?"],["route","weather_time_agent"],["in","Bom dia! 🌤️ Parcialmente nublado, máxima de 31 °C. Entre 15h e 18h a chance de chuva chega a 70%. Vale levar o guarda-chuva!"]]},
+  {label:"Foto da lista", time:"10:14", steps:[["photo","coloca na lista"],["route","shopping_agent"],["in","Pronto! Adicionei 5 itens: *Leite* (2), *Arroz*, *Feijão*, *Café* e *Detergente*. O *Açúcar* já estava na lista."]]},
+  {label:"Áudio", time:"19:20", steps:[["audio-out","0:03"],["route","weather_time_agent"],["audio-in","0:05"]]},
+  {label:"Agenda", time:"11:40", steps:[["out","Marca dentista sexta às 14h"],["route","agenda_agent"],["in","Agendado! 🦷 *Dentista* na sexta, das 14:00 às 15:00. Eu te aviso 30 minutos antes."]]},
+  {label:"Placar", time:"20:30", steps:[["out","Até as 22h me manda o placar de Real Madrid x Barcelona a cada 30 minutos"],["route","search_agent"],["in","Combinado! Agora está 1 x 0 para o Real Madrid. Te mando uma atualização a cada 30 minutos até as 22h."],["in","🔄 Gol do Barcelona: 1 x 1, aos 60 minutos."]]},
+];
+const chat=document.getElementById("chat"), tabs=document.getElementById("chatTabs"), status=document.getElementById("status");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let run=0, cur=0, auto=true, timer;
+const wait = ms => new Promise(r=>setTimeout(r, reduce?0:ms));
+function bubble(kind,text,time){
+  const d=document.createElement("div");
+  if(kind==="route"){d.className="route";d.textContent="→ "+text;return d}
+  if(kind==="photo"){d.className="msg out";d.innerHTML=`<div class="photo">leite (2)<br>arroz · feijão<br>café · detergente<br>açúcar</div>${esc(text)}<div class="meta">${time}</div>`;return d}
+  if(kind.startsWith("audio")){d.className="msg "+(kind==="audio-out"?"out":"in");d.innerHTML=`<div class="audio"><i>▶</i><span class="wave"></span><small>${text}</small></div><div class="meta">${time}</div>`;return d}
+  d.className="msg "+kind; d.innerHTML=fmt(text)+`<div class="meta">${time}</div>`; return d;
+}
+async function play(i){
+  const id=++run; cur=i;
+  tabs.querySelectorAll("button").forEach((b,k)=>b.setAttribute("aria-pressed",k===i));
+  const s=SCENES[i]; chat.innerHTML="";
+  for(const [k,t] of s.steps){
+    if(id!==run) return;
+    if(k==="in"||k==="audio-in"){
+      status.textContent = k==="audio-in" ? "gravando áudio..." : "digitando...";
+      const ty=document.createElement("div"); ty.className="typing"; ty.innerHTML="<span></span><span></span><span></span>";
+      chat.appendChild(ty); await wait(1300); if(id!==run) return; ty.remove(); status.textContent="online";
+    }
+    chat.appendChild(bubble(k,t,s.time)); await wait(k==="route"?600:900);
+  }
+  if(auto && !reduce){ timer=setTimeout(()=>{ if(id===run) play((i+1)%SCENES.length) }, 3800); }
+}
+SCENES.forEach((s,i)=>{const b=document.createElement("button");b.textContent=s.label;b.setAttribute("aria-pressed",i===0);b.onclick=()=>{auto=false;clearTimeout(timer);play(i)};tabs.appendChild(b)});
+if(!reduce){ setTimeout(()=>{ if(run===0) play(1) }, 4200); }
+</script>
+
+</body>
+</html>
