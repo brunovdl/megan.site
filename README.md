@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/megan-avatar.svg" alt="Avatar da Megan" width="180">
+</p>
+
 # ✨ Megan: assistente pessoal no WhatsApp
 
 Conheça o projeto completo em **[brunovdl.github.io/megan.site](https://brunovdl.github.io/megan.site/)**.
